@@ -63,21 +63,21 @@ function create() {
     this.cameras.main.setSize(800, 600);
 }
 
-function update() {
+function update(time, delta) {
     if (this.ship) {
         var direction = new Phaser.Math.Vector2(0, 0) ;
 
         if (this.cursors.left.isDown) {
-            direction.x -= 10;
+            direction.x -= 10 * delta;
         }
         if (this.cursors.right.isDown) {
-            direction.x += 10;
+            direction.x += 10 * delta;
         } 
         if (this.cursors.up.isDown) {
-            direction.y -= 10;
+            direction.y -= 10 * delta;
         }
         if (this.cursors.down.isDown) {
-            direction.y += 10;
+            direction.y += 10 * delta;
         }
 
         direction.normalize();
