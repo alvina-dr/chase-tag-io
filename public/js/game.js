@@ -1,5 +1,3 @@
-// const { normalize } = require("path");
-
 var config = {
     type: Phaser.AUTO,
     parent: 'phaser-example',
@@ -62,38 +60,36 @@ function create() {
       });
 
     this.cursors = this.input.keyboard.createCursorKeys();
+    this.cameras.main.setSize(800, 600);
 }
 
-function update() {
+function update(time, delta) {
     if (this.ship) {
         var direction = new Phaser.Math.Vector2(0, 0) ;
 
         if (this.cursors.left.isDown) {
-            direction.x -= 10;
-        //   this.ship.setAngularVelocity(-150);
+            direction.x -= 10 * delta;
         }
         if (this.cursors.right.isDown) {
-            direction.x += 10;
-        //   this.ship.setAngularVelocity(150);
+            direction.x += 10 * delta;
         } 
         if (this.cursors.up.isDown) {
-            direction.y -= 10;
+            direction.y -= 10 * delta;
         }
         if (this.cursors.down.isDown) {
-            direction.y += 10;
+            direction.y += 10 * delta;
         }
 
         direction.normalize();
         this.ship.x += direction.x;
         this.ship.y += direction.y;
-        // this.physics.world.wrap(this.ship, 5);
 
         // emit player movement for other players to catch
         var x = this.ship.x;
         var y = this.ship.y;
         var r = this.ship.rotation;
         if (this.ship.oldPosition && (x !== this.ship.oldPosition.x || y !== this.ship.oldPosition.y || r !== this.ship.oldPosition.rotation)) {
-        this.socket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation });
+            this.socket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation });
         }
         // save old position data
         this.ship.oldPosition = {
@@ -101,11 +97,14 @@ function update() {
             y: this.ship.y,
             rotation: this.ship.rotation
         };
+        this.cameras.main.startFollow(this.ship);
     }
 }
 
 function addPlayer(self, playerInfo) {
     self.ship = self.physics.add.image(playerInfo.x, playerInfo.y, 'player-sprite').setOrigin(0.5, 0.5).setDisplaySize(40, 40);
+    self.ship.x = 0;
+    self.ship.y = 0;
     if (playerInfo.team === 'blue') {
         self.ship.setTint(0x0000ff);
     } else {
