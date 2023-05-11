@@ -22,6 +22,7 @@ var game = new Phaser.Game(config);
 function preload() { //load assets
     this.load.image('player-sprite', 'assets/player-sprite.png');
     this.load.image('enemy-sprite', 'assets/enemy-sprite.png');
+
 }
 
 function create() {
@@ -59,30 +60,44 @@ function create() {
         });
       });
 
+    this.customKeys = this.input.keyboard.addKeys({
+        up: Phaser.Input.Keyboard.KeyCodes.up,
+        down: Phaser.Input.Keyboard.KeyCodes.down,
+        left: Phaser.Input.Keyboard.KeyCodes.left,
+        right: Phaser.Input.Keyboard.KeyCodes.right,
+        space: Phaser.Input.Keyboard.KeyCodes.space,
+    });
+    this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.cameras.main.setSize(800, 600);
+    this.speed = 40;
 }
 
 function update(time, delta) {
     if (this.ship) {
         var direction = new Phaser.Math.Vector2(0, 0) ;
-
+        var speedFactor = 1;
         if (this.cursors.left.isDown) {
-            direction.x -= 10 * delta;
+            direction.x -= 1;
+            console.dir("down");
         }
         if (this.cursors.right.isDown) {
-            direction.x += 10 * delta;
+            direction.x += 1;
         } 
         if (this.cursors.up.isDown) {
-            direction.y -= 10 * delta;
+            direction.y -= 1;
         }
         if (this.cursors.down.isDown) {
-            direction.y += 10 * delta;
+            direction.y += 1;
+        }
+
+        if (this.spaceKey.isDown) {
+            speedFactor = 4;
         }
 
         direction.normalize();
-        this.ship.x += direction.x;
-        this.ship.y += direction.y;
+        this.ship.x += direction.x * speedFactor * this.speed * delta;
+        this.ship.y += direction.y * speedFactor * this.speed * delta;
 
         // emit player movement for other players to catch
         var x = this.ship.x;
