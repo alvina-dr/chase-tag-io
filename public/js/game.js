@@ -70,16 +70,17 @@ function create() {
     this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.cursors = this.input.keyboard.createCursorKeys();
     this.cameras.main.setSize(800, 600);
-    this.speed = 40;
+    this.speed = 0.6;
+    this.speedFactor = 1;
+    this.dashCooldown = 0;
 }
 
 function update(time, delta) {
     if (this.ship) {
         var direction = new Phaser.Math.Vector2(0, 0) ;
-        var speedFactor = 1;
+
         if (this.cursors.left.isDown) {
             direction.x -= 1;
-            console.dir("down");
         }
         if (this.cursors.right.isDown) {
             direction.x += 1;
@@ -91,13 +92,27 @@ function update(time, delta) {
             direction.y += 1;
         }
 
-        if (this.spaceKey.isDown) {
-            speedFactor = 4;
+        //DASH SECTION
+        if(this.dashCooldown > 0) {
+            this.dashCooldown -= delta;
+        } else {
+            this.dashCooldown = 0;
+            this.speedFactor = 1;
+            this.ship.setTint(0xFFFFFF);
+        }
+        if (this.speedFactor > 1) {
+            this.speedFactor *= 0.95;
+        } 
+
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey) && this.dashCooldown <= 0) {
+            this.speedFactor += 3;
+            this.dashCooldown = 1500;
+            this.ship.setTint(0x6C6C6C);
         }
 
         direction.normalize();
-        this.ship.x += direction.x * speedFactor * this.speed * delta;
-        this.ship.y += direction.y * speedFactor * this.speed * delta;
+        this.ship.x += direction.x * this.speedFactor * this.speed * delta;
+        this.ship.y += direction.y * this.speedFactor * this.speed * delta;
 
         // emit player movement for other players to catch
         var x = this.ship.x;
@@ -120,11 +135,13 @@ function addPlayer(self, playerInfo) {
     self.ship = self.physics.add.image(playerInfo.x, playerInfo.y, 'player-sprite').setOrigin(0.5, 0.5).setDisplaySize(40, 40);
     self.ship.x = 0;
     self.ship.y = 0;
-    if (playerInfo.team === 'blue') {
-        self.ship.setTint(0x0000ff);
-    } else {
-        self.ship.setTint(0xff0000);
-    }
+    // if (playerInfo.team === 'blue') {
+    //     self.ship.setTint(0x0000ff);
+    // } else {
+    //     self.ship.setTint(0xff0000);
+    // }
+    if (self.ship.dashCooldown > 0) self.ship.setTint(0x6C6C6C);
+    else self.ship.setTint(0xffffff);
     self.ship.setDrag(100);
     self.ship.setAngularDrag(100);
     self.ship.setMaxVelocity(200);
@@ -132,11 +149,13 @@ function addPlayer(self, playerInfo) {
 
 function addOtherPlayers(self, playerInfo) {
     const otherPlayer = self.add.sprite(playerInfo.x, playerInfo.y, 'enemy-sprite').setOrigin(0.5, 0.5).setDisplaySize(40, 40);
-    if (playerInfo.team === 'blue') {
-        otherPlayer.setTint(0x0000ff);
-    } else {
-        otherPlayer.setTint(0xff0000);
-    }
+    // if (playerInfo.team === 'blue') {
+    //     otherPlayer.setTint(0x0000ff);
+    // } else {
+    //     otherPlayer.setTint(0xff0000);
+    // }
+    if (playerInfo.dashCooldown > 0) otherPlayer.setTint(0x6C6C6C);
+    else otherPlayer.setTint(0xffffff);
     otherPlayer.playerId = playerInfo.playerId;
     self.otherPlayers.add(otherPlayer);
 }
