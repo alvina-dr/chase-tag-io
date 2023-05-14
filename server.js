@@ -15,7 +15,7 @@ io.on('connection', function (socket) {
         x: Math.floor(Math.random() * 700) + 50,
         y: Math.floor(Math.random() * 500) + 50,
         playerId: socket.id,
-        team: (Math.floor(Math.random() * 2) == 0) ? 'red' : 'blue'
+        team: ''
     };
 
     // send the players object to the new player
@@ -39,6 +39,12 @@ io.on('connection', function (socket) {
         // emit a message to all players about the player that moved
         socket.broadcast.emit('playerMoved', players[socket.id]);
     });
+
+    socket.on('teamChange', function (team) {
+      players[socket.id].team = team;
+      // emit a message to all players that the player changed team
+      socket.broadcast.emit('playerTeamChanged', players[socket.id]);
+  });
   });
 
 server.listen(process.env.PORT || 8081, function () {
