@@ -227,7 +227,7 @@ function dashBehavior(self, delta) {
   } else if (self.dashCooldown < 0) {
     self.dashCooldown = 0;
     self.speedFactor = 1;
-    self.ship.setTint(0xffffff);
+    //     self.ship.setTint(0xffffff);
   }
 
   if (self.speedFactor > 1) {
@@ -237,6 +237,6 @@ function dashBehavior(self, delta) {
   if (Phaser.Input.Keyboard.JustDown(self.spaceKey) && self.dashCooldown <= 0) {
     self.speedFactor += 3;
     self.dashCooldown = 1500;
-    self.ship.setTint(0x6c6c6c);
+    //     self.ship.setTint(0x6c6c6c);
   }
 }
