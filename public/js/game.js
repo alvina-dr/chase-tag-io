@@ -29,6 +29,7 @@ function create() {
   var self = this;
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
+  this.collidingPlayers = this.physics.add.group();
   this.socket.on("currentPlayers", function (players) {
     //on start game, gets all players
     Object.keys(players).forEach(function (id) {
@@ -68,16 +69,26 @@ function create() {
 
   //on player tagged, find and change color
   this.socket.on("playerTeamChanged", function (playerInfo) {
-    self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-      if (playerInfo.playerId === otherPlayer.playerId) {
-        if (playerInfo.team === "chaser") {
-          otherPlayer.setTint(0xff0000);
-        } else if (playerInfo.team === "evader") {
-          otherPlayer.setTint(0x0000ff);
-        }
-        console.dir("turn a player's color");
+    if (playerInfo.playerId === self.socket.id) {
+      self.team = playerInfo.team;
+      if (playerInfo.team === "chaser") {
+        self.ship.setTint(0xff0000);
+      } else if (playerInfo.team === "evader") {
+        self.ship.setTint(0x0000ff);
       }
-    });
+    } else {
+      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
+        console.dir("on team change : " + otherPlayer.team);
+        if (playerInfo.playerId === otherPlayer.playerId) {
+          otherPlayer.team = playerInfo.team;
+          if (playerInfo.team === "chaser") {
+            otherPlayer.setTint(0xff0000);
+          } else if (playerInfo.team === "evader") {
+            otherPlayer.setTint(0x0000ff);
+          }
+        }
+      });
+    }
   });
 
   this.customKeys = this.input.keyboard.addKeys({
@@ -90,6 +101,7 @@ function create() {
   this.spaceKey = this.input.keyboard.addKey(
     Phaser.Input.Keyboard.KeyCodes.SPACE
   );
+  this.c = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
   this.cursors = this.input.keyboard.createCursorKeys();
   this.cameras.main.setSize(800, 600);
   this.speed = 0.6;
@@ -119,17 +131,31 @@ function update(time, delta) {
     if (this.cursors.down.isDown) {
       direction.y += 1;
     }
+
+    //DETECT COLLISION ENTER
     this.otherPlayers.getChildren().forEach(function (otherPlayerCollider) {
-      if (checkOverlap(this.ship, otherPlayerCollider)) {
-        console.dir(otherPlayerCollider.team);
-        if (this.team === "evader" && otherPlayerCollider.team === "chaser") {
-          getTagged(this);
-        } else if (
-          this.team === "chaser" &&
-          otherPlayerCollider.team === "evader"
-        ) {
-          giveTag(this);
+      // console.dir(this.collidingPlayers);
+      if (
+        this.collidingPlayers.getMatching(
+          "playerId",
+          otherPlayerCollider.playerId
+        ).length === 0 &&
+        checkOverlap(this.ship, otherPlayerCollider)
+      ) {
+        console.dir("PLAYER ENTER");
+        this.collidingPlayers.add(otherPlayerCollider);
+        if (this.team === "chaser" && otherPlayerCollider.team === "evader") {
+          tagTarget(this, otherPlayerCollider);
         }
+      } else if (
+        this.collidingPlayers.getMatching(
+          "playerId",
+          otherPlayerCollider.playerId
+        ).length > 0 &&
+        !checkOverlap(this.ship, otherPlayerCollider)
+      ) {
+        console.dir("PLAYER EXIT");
+        this.collidingPlayers.remove(otherPlayerCollider);
       }
     }, this);
 
@@ -173,14 +199,21 @@ function addPlayer(self, playerInfo) {
     .setDisplaySize(40, 40);
   self.ship.x = 0;
   self.ship.y = 0;
+  console.dir("id to declare is : " + self.socket.id);
   if (self.otherPlayers.getMatching("team", "chaser").length === 0) {
     self.team = "chaser";
     self.ship.setTint(0xff0000);
-    self.socket.emit("teamChange", "chaser");
+    self.socket.emit("teamChange", {
+      targetId: self.socket.id,
+      team: "chaser",
+    });
   } else {
     self.team = "evader";
     self.ship.setTint(0x0000ff);
-    self.socket.emit("teamChange", "evader");
+    self.socket.emit("teamChange", {
+      targetId: self.socket.id,
+      team: "evader",
+    });
   }
   // if (self.ship.dashCooldown > 0) self.ship.setTint(0x6C6C6C);
   // else self.ship.setTint(0xffffff);
@@ -195,6 +228,7 @@ function addOtherPlayers(self, playerInfo) {
     .setOrigin(0.5, 0.5)
     .setDisplaySize(40, 40);
   otherPlayer.team = playerInfo.team;
+  console.dir(playerInfo.team);
   if (playerInfo.team === "chaser") {
     otherPlayer.setTint(0xff0000);
   } else if (playerInfo.team === "evader") {
@@ -204,15 +238,20 @@ function addOtherPlayers(self, playerInfo) {
   self.otherPlayers.add(otherPlayer);
 }
 
-function getTagged(self) {
-  console.dir("TOUCH");
-  self.ship.setTint(0xff0000);
-  self.socket.emit("teamChange", "chaser");
-}
-
-function giveTag(self) {
+function tagTarget(self, target) {
+  console.dir("GIVE TAG");
   self.ship.setTint(0x0000ff);
-  self.socket.emit("teamChange", "evader");
+  target.setTint(0xff0000);
+  self.team = "evader";
+  target.team = "chaser";
+  self.socket.emit("teamChange", {
+    targetId: self.socket.id,
+    team: "evader",
+  });
+  self.socket.emit("teamChange", {
+    targetId: target.playerId,
+    team: "chaser",
+  });
 }
 
 function checkOverlap(spriteA, spriteB) {
@@ -227,7 +266,6 @@ function dashBehavior(self, delta) {
   } else if (self.dashCooldown < 0) {
     self.dashCooldown = 0;
     self.speedFactor = 1;
-    //     self.ship.setTint(0xffffff);
   }
 
   if (self.speedFactor > 1) {
@@ -238,5 +276,9 @@ function dashBehavior(self, delta) {
     self.speedFactor += 3;
     self.dashCooldown = 1500;
     //     self.ship.setTint(0x6c6c6c);
+  }
+
+  if (Phaser.Input.Keyboard.JustDown(self.c)) {
+    console.dir("TEAM : " + self.team);
   }
 }
