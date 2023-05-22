@@ -23,9 +23,11 @@ function preload() {
   //load assets
   this.load.image("player-sprite", "assets/player-sprite.png");
   this.load.image("enemy-sprite", "assets/enemy-sprite.png");
+  this.load.image("grid-sprite", "assets/grid.png");
 }
 
 function create() {
+  this.cameras.main.setBackgroundColor("#ffffff");
   var self = this;
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
@@ -108,11 +110,9 @@ function create() {
   this.speedFactor = 1;
   this.dashCooldown = 0;
   this.test = this.physics.add
-    .sprite(0, 0, "player-sprite")
+    .sprite(0, 0, "grid-sprite")
     .setOrigin(0.5, 0.5)
-    .setDisplaySize(10, 10);
-  this.test.x = 130;
-  this.test.y = 130;
+    .setDisplaySize(2500, 2000);
 }
 
 function update(time, delta) {
@@ -134,7 +134,6 @@ function update(time, delta) {
 
     //DETECT COLLISION ENTER
     this.otherPlayers.getChildren().forEach(function (otherPlayerCollider) {
-      // console.dir(this.collidingPlayers);
       if (
         this.collidingPlayers.getMatching(
           "playerId",
@@ -215,8 +214,15 @@ function addPlayer(self, playerInfo) {
       team: "evader",
     });
   }
-  // if (self.ship.dashCooldown > 0) self.ship.setTint(0x6C6C6C);
-  // else self.ship.setTint(0xffffff);
+  // self.pulseTween = self.tweens.add({
+  //   targets: self.ship,
+  //   // tint: 0xff00ff,
+  //   scale: 0.05,
+  //   yoyo: true,
+  //   duration: 300,
+  //   loop: -1,
+  //   ease: Phaser.Math.Easing.Sine.InOut,
+  // });
   self.ship.setDrag(100);
   self.ship.setAngularDrag(100);
   self.ship.setMaxVelocity(200);
@@ -224,7 +230,7 @@ function addPlayer(self, playerInfo) {
 
 function addOtherPlayers(self, playerInfo) {
   const otherPlayer = self.physics.add
-    .sprite(playerInfo.x, playerInfo.y, "enemy-sprite")
+    .sprite(playerInfo.x, playerInfo.y, "player-sprite")
     .setOrigin(0.5, 0.5)
     .setDisplaySize(40, 40);
   otherPlayer.team = playerInfo.team;
@@ -275,6 +281,15 @@ function dashBehavior(self, delta) {
   if (Phaser.Input.Keyboard.JustDown(self.spaceKey) && self.dashCooldown <= 0) {
     self.speedFactor += 3;
     self.dashCooldown = 1500;
+    self.pulseTween = self.tweens.add({
+      targets: self.ship,
+      // tint: 0xff00ff,
+      scale: 0.04,
+      duration: 100,
+      rotation: 36,
+      yoyo: true,
+      ease: Phaser.Math.Easing.Sine.InOut,
+    });
     //     self.ship.setTint(0x6c6c6c);
   }
 
