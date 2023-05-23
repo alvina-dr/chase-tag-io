@@ -24,6 +24,7 @@ function preload() {
   this.load.image("player-sprite", "assets/player-sprite.png");
   this.load.image("enemy-sprite", "assets/enemy-sprite.png");
   this.load.image("grid-sprite", "assets/grid.png");
+  this.load.image("triangle-particle", "assets/triangle-particle.png");
 }
 
 function create() {
@@ -54,6 +55,7 @@ function create() {
     //on quit game
     self.otherPlayers.getChildren().forEach(function (otherPlayer) {
       if (playerId === otherPlayer.playerId) {
+        otherPlayer.trailEmitter.destroy();
         otherPlayer.destroy();
       }
     });
@@ -134,6 +136,9 @@ function update(time, delta) {
 
     //DETECT COLLISION ENTER
     this.otherPlayers.getChildren().forEach(function (otherPlayerCollider) {
+      // otherPlayerCollider.trailEmitter.x = otherPlayerCollider.x;
+      // otherPlayerCollider.trailEmitter.y = otherPlayerCollider.y;
+      // otherPlayerCollider.trailEmitter.startFollow(otherPlayerCollider);
       if (
         this.collidingPlayers.getMatching(
           "playerId",
@@ -188,6 +193,7 @@ function update(time, delta) {
       rotation: this.ship.rotation,
     };
     this.cameras.main.startFollow(this.ship);
+    this.trailEmitter.startFollow(this.ship, 0, 0, 0, 3, 0.5);
   }
 }
 
@@ -214,18 +220,30 @@ function addPlayer(self, playerInfo) {
       team: "evader",
     });
   }
-  // self.pulseTween = self.tweens.add({
-  //   targets: self.ship,
-  //   // tint: 0xff00ff,
-  //   scale: 0.05,
-  //   yoyo: true,
-  //   duration: 300,
-  //   loop: -1,
-  //   ease: Phaser.Math.Easing.Sine.InOut,
-  // });
   self.ship.setDrag(100);
   self.ship.setAngularDrag(100);
   self.ship.setMaxVelocity(200);
+  self.trailEmitter = self.add.particles(
+    self.ship.x + 0.5,
+    -3,
+    "triangle-particle",
+    {
+      speed: 100,
+      lifespan: 300,
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 1, end: 0 },
+      rotate: { random: true, start: 0, end: 180 },
+      color: [0xf59d05, 0xff0000],
+      colorEase: "quad.out",
+      angle: { min: -100, max: -80 },
+    }
+  );
+  self.ship.depth = 100;
+  self.socket.emit("playerMovement", {
+    x: self.ship.x,
+    y: self.ship.y,
+    rotation: self.ship.rotation,
+  });
 }
 
 function addOtherPlayers(self, playerInfo) {
@@ -241,6 +259,28 @@ function addOtherPlayers(self, playerInfo) {
     otherPlayer.setTint(0x0000ff);
   }
   otherPlayer.playerId = playerInfo.playerId;
+  otherPlayer.trailEmitter = self.add.particles(0, 0, "triangle-particle", {
+    speed: 100,
+    lifespan: 300,
+    scale: { start: 0.5, end: 0 },
+    alpha: { start: 1, end: 0 },
+    rotate: { random: true, start: 0, end: 180 },
+    color: [0xf59d05, 0xff0000],
+    colorEase: "quad.out",
+    angle: { min: -100, max: -80 },
+    x: {
+      onEmit: (particle, key, t, value) => {
+        return otherPlayer.x;
+      },
+    },
+    y: {
+      onEmit: (particle, key, t, value) => {
+        return otherPlayer.y;
+      },
+    },
+  });
+  otherPlayer.depth = 100;
+  // otherPlayer.trailEmitter.startFollow(otherPlayer);
   self.otherPlayers.add(otherPlayer);
 }
 
