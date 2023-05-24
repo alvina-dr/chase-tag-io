@@ -77,6 +77,8 @@ function create() {
       self.team = playerInfo.team;
       if (playerInfo.team === "chaser") {
         self.ship.setTint(0xff0000);
+        self.tagParticles.emitParticleAt(self.ship.x, self.ship.y, 20);
+        self.cameras.main.shake(150, 0.015);
       } else if (playerInfo.team === "evader") {
         self.ship.setTint(0x0000ff);
       }
@@ -86,6 +88,7 @@ function create() {
         if (playerInfo.playerId === otherPlayer.playerId) {
           otherPlayer.team = playerInfo.team;
           if (playerInfo.team === "chaser") {
+            self.tagParticles.emitParticleAt(otherPlayer.x, otherPlayer.y, 20);
             otherPlayer.setTint(0xff0000);
           } else if (playerInfo.team === "evader") {
             otherPlayer.setTint(0x0000ff);
@@ -115,6 +118,16 @@ function create() {
     .sprite(0, 0, "grid-sprite")
     .setOrigin(0.5, 0.5)
     .setDisplaySize(2500, 2000);
+  this.tagParticles = this.add.particles(0, 0, "triangle-particle", {
+    speed: 300,
+    lifespan: 400,
+    scale: { start: 0.5, end: 0 },
+    alpha: { start: 1, end: 0 },
+    rotate: { random: true, start: 0, end: 180 },
+    color: [0x0000ff, 0xff0000],
+    colorEase: "quad.out",
+    emitting: false,
+  });
 }
 
 function update(time, delta) {
@@ -136,9 +149,6 @@ function update(time, delta) {
 
     //DETECT COLLISION ENTER
     this.otherPlayers.getChildren().forEach(function (otherPlayerCollider) {
-      // otherPlayerCollider.trailEmitter.x = otherPlayerCollider.x;
-      // otherPlayerCollider.trailEmitter.y = otherPlayerCollider.y;
-      // otherPlayerCollider.trailEmitter.startFollow(otherPlayerCollider);
       if (
         this.collidingPlayers.getMatching(
           "playerId",
@@ -194,6 +204,7 @@ function update(time, delta) {
     };
     this.cameras.main.startFollow(this.ship);
     this.trailEmitter.startFollow(this.ship, 0, 0, 0, 3, 0.5);
+    this.dashParticles.startFollow(this.ship, 0, 0, 0, 3, 0.5);
   }
 }
 
@@ -223,21 +234,27 @@ function addPlayer(self, playerInfo) {
   self.ship.setDrag(100);
   self.ship.setAngularDrag(100);
   self.ship.setMaxVelocity(200);
-  self.trailEmitter = self.add.particles(
-    self.ship.x + 0.5,
-    -3,
-    "triangle-particle",
-    {
-      speed: 100,
-      lifespan: 300,
-      scale: { start: 0.5, end: 0 },
-      alpha: { start: 1, end: 0 },
-      rotate: { random: true, start: 0, end: 180 },
-      color: [0xf59d05, 0xff0000],
-      colorEase: "quad.out",
-      angle: { min: -100, max: -80 },
-    }
-  );
+  self.trailEmitter = self.add.particles(0, 0, "triangle-particle", {
+    speed: 100,
+    lifespan: 300,
+    scale: { start: 0.5, end: 0 },
+    alpha: { start: 1, end: 0 },
+    rotate: { random: true, start: 0, end: 180 },
+    color: [0xf59d05, 0xff0000],
+    colorEase: "quad.out",
+    // angle: { min: -170, max: -190 },
+  });
+  self.dashParticles = self.add.particles(0, 0, "triangle-particle", {
+    speed: 350,
+    lifespan: 300,
+    scale: { start: 0.6, end: 0 },
+    alpha: { start: 1, end: 0 },
+    rotate: { random: true, start: 0, end: 180 },
+    color: [0xf59d05, 0xffffff],
+    colorEase: "quad.out",
+    emitting: false,
+    // angle: { min: 75, max: -75 },
+  });
   self.ship.depth = 100;
   self.socket.emit("playerMovement", {
     x: self.ship.x,
@@ -267,7 +284,7 @@ function addOtherPlayers(self, playerInfo) {
     rotate: { random: true, start: 0, end: 180 },
     color: [0xf59d05, 0xff0000],
     colorEase: "quad.out",
-    angle: { min: -100, max: -80 },
+    // angle: { min: -170, max: -190 },
     x: {
       onEmit: (particle, key, t, value) => {
         return otherPlayer.x;
@@ -280,7 +297,6 @@ function addOtherPlayers(self, playerInfo) {
     },
   });
   otherPlayer.depth = 100;
-  // otherPlayer.trailEmitter.startFollow(otherPlayer);
   self.otherPlayers.add(otherPlayer);
 }
 
@@ -298,6 +314,8 @@ function tagTarget(self, target) {
     targetId: target.playerId,
     team: "chaser",
   });
+  self.tagParticles.emitParticleAt(target.x, target.y, 30);
+  self.cameras.main.shake(150, 0.015);
 }
 
 function checkOverlap(spriteA, spriteB) {
@@ -323,14 +341,13 @@ function dashBehavior(self, delta) {
     self.dashCooldown = 1500;
     self.pulseTween = self.tweens.add({
       targets: self.ship,
-      // tint: 0xff00ff,
       scale: 0.04,
       duration: 100,
       rotation: 36,
       yoyo: true,
       ease: Phaser.Math.Easing.Sine.InOut,
     });
-    //     self.ship.setTint(0x6c6c6c);
+    self.dashParticles.emitParticleAt(self.ship.x, self.ship.y, 20);
   }
 
   if (Phaser.Input.Keyboard.JustDown(self.c)) {
