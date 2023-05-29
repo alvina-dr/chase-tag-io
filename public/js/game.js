@@ -33,70 +33,8 @@ function create() {
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
   this.collidingPlayers = this.physics.add.group();
-  this.socket.on("currentPlayers", function (players) {
-    //on start game, gets all players
-    Object.keys(players).forEach(function (id) {
-      if (players[id].playerId === self.socket.id) {
-        //if player is self
-        addPlayer(self, players[id]);
-      } else {
-        //if player is other
-        addOtherPlayers(self, players[id]);
-      }
-    });
-  });
 
-  this.socket.on("newPlayer", function (playerInfo) {
-    //on other new player join
-    addOtherPlayers(self, playerInfo);
-  });
-
-  this.socket.on("disconnectBis", function (playerId) {
-    //on quit game
-    self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-      if (playerId === otherPlayer.playerId) {
-        otherPlayer.trailEmitter.destroy();
-        otherPlayer.destroy();
-      }
-    });
-  });
-
-  //other players movement
-  this.socket.on("playerMoved", function (playerInfo) {
-    self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-      if (playerInfo.playerId === otherPlayer.playerId) {
-        otherPlayer.setRotation(playerInfo.rotation);
-        otherPlayer.setPosition(playerInfo.x, playerInfo.y);
-      }
-    });
-  });
-
-  //on player tagged, find and change color
-  this.socket.on("playerTeamChanged", function (playerInfo) {
-    if (playerInfo.playerId === self.socket.id) {
-      self.team = playerInfo.team;
-      if (playerInfo.team === "chaser") {
-        self.ship.setTint(0xff0000);
-        self.tagParticles.emitParticleAt(self.ship.x, self.ship.y, 20);
-        self.cameras.main.shake(150, 0.015);
-      } else if (playerInfo.team === "evader") {
-        self.ship.setTint(0x0000ff);
-      }
-    } else {
-      self.otherPlayers.getChildren().forEach(function (otherPlayer) {
-        console.dir("on team change : " + otherPlayer.team);
-        if (playerInfo.playerId === otherPlayer.playerId) {
-          otherPlayer.team = playerInfo.team;
-          if (playerInfo.team === "chaser") {
-            self.tagParticles.emitParticleAt(otherPlayer.x, otherPlayer.y, 20);
-            otherPlayer.setTint(0xff0000);
-          } else if (playerInfo.team === "evader") {
-            otherPlayer.setTint(0x0000ff);
-          }
-        }
-      });
-    }
-  });
+  socketCalls.setupSocketCall(this);
 
   this.customKeys = this.input.keyboard.addKeys({
     up: Phaser.Input.Keyboard.KeyCodes.up,
@@ -156,7 +94,7 @@ function update(time, delta) {
         ).length === 0 &&
         checkOverlap(this.ship, otherPlayerCollider)
       ) {
-        console.dir("PLAYER ENTER");
+        // console.dir("PLAYER ENTER");
         this.collidingPlayers.add(otherPlayerCollider);
         if (this.team === "chaser" && otherPlayerCollider.team === "evader") {
           tagTarget(this, otherPlayerCollider);
@@ -168,7 +106,7 @@ function update(time, delta) {
         ).length > 0 &&
         !checkOverlap(this.ship, otherPlayerCollider)
       ) {
-        console.dir("PLAYER EXIT");
+        // console.dir("PLAYER EXIT");
         this.collidingPlayers.remove(otherPlayerCollider);
       }
     }, this);
@@ -269,7 +207,6 @@ function addOtherPlayers(self, playerInfo) {
     .setOrigin(0.5, 0.5)
     .setDisplaySize(40, 40);
   otherPlayer.team = playerInfo.team;
-  console.dir(playerInfo.team);
   if (playerInfo.team === "chaser") {
     otherPlayer.setTint(0xff0000);
   } else if (playerInfo.team === "evader") {
@@ -296,12 +233,22 @@ function addOtherPlayers(self, playerInfo) {
       },
     },
   });
+  otherPlayer.dashParticles = self.add.particles(0, 0, "triangle-particle", {
+    speed: 350,
+    lifespan: 300,
+    scale: { start: 0.6, end: 0 },
+    alpha: { start: 1, end: 0 },
+    rotate: { random: true, start: 0, end: 180 },
+    color: [0xf59d05, 0xffffff],
+    colorEase: "quad.out",
+    emitting: false,
+    // angle: { min: 75, max: -75 },
+  });
   otherPlayer.depth = 100;
   self.otherPlayers.add(otherPlayer);
 }
 
 function tagTarget(self, target) {
-  console.dir("GIVE TAG");
   self.ship.setTint(0x0000ff);
   target.setTint(0xff0000);
   self.team = "evader";
@@ -316,6 +263,7 @@ function tagTarget(self, target) {
   });
   self.tagParticles.emitParticleAt(target.x, target.y, 30);
   self.cameras.main.shake(150, 0.015);
+  becomeChaser(self, target);
 }
 
 function checkOverlap(spriteA, spriteB) {
@@ -339,18 +287,32 @@ function dashBehavior(self, delta) {
   if (Phaser.Input.Keyboard.JustDown(self.spaceKey) && self.dashCooldown <= 0) {
     self.speedFactor += 3;
     self.dashCooldown = 1500;
-    self.pulseTween = self.tweens.add({
+    self.dashTween = self.tweens.add({
       targets: self.ship,
-      scale: 0.04,
+      // scale: 0.04,
       duration: 100,
       rotation: 36,
       yoyo: true,
       ease: Phaser.Math.Easing.Sine.InOut,
     });
     self.dashParticles.emitParticleAt(self.ship.x, self.ship.y, 20);
+    self.cameras.main.shake(100, 0.01);
+    self.socket.emit("dash");
   }
 
   if (Phaser.Input.Keyboard.JustDown(self.c)) {
     console.dir("TEAM : " + self.team);
   }
+}
+
+function becomeChaser(self, target) {
+  target.tagTween = self.tweens.add({
+    targets: target,
+    scale: 0.15,
+    duration: 100,
+    yoyo: true,
+    ease: Phaser.Math.Easing.Sine.InOut,
+  });
+  self.tagParticles.emitParticleAt(target.x, target.y, 20);
+  target.setTint(0xff0000);
 }

@@ -24,6 +24,7 @@ io.on("connection", function (socket) {
   // update all other players of the new player
   socket.broadcast.emit("newPlayer", players[socket.id]);
 
+  //DISCONNECT
   socket.on("disconnect", function () {
     console.log("user disconnected");
     // remove this player from our players object
@@ -31,7 +32,8 @@ io.on("connection", function (socket) {
     // emit a message to all players to remove this player
     io.emit("disconnectBis", socket.id);
   });
-  // when a player moves, update the player data
+
+  //PLAYER MOVEMENT
   socket.on("playerMovement", function (movementData) {
     players[socket.id].x = movementData.x;
     players[socket.id].y = movementData.y;
@@ -40,11 +42,17 @@ io.on("connection", function (socket) {
     socket.broadcast.emit("playerMoved", players[socket.id]);
   });
 
+  //TEAM CHANGE
   socket.on("teamChange", function (data) {
-    console.dir("player to change team : " + players[data.targetId]);
     players[data.targetId].team = data.team;
     // emit a message to all players that the player changed team
     socket.broadcast.emit("playerTeamChanged", players[data.targetId]);
+  });
+
+  //PLAYER DASH
+  socket.on("dash", function () {
+    // emit a message to all players that the player dashed
+    socket.broadcast.emit("playerDash", players[socket.id]);
   });
 });
 
